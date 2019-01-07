@@ -1,0 +1,252 @@
+db --host localhost:27
+
+use ecom 
+
+
+
+db.product.insertMany([
+    {"_id" : 1, name:"Item1", unit_price:10,description:"Item One"},
+    {"_id" : 2, name:"Item2", unit_price: 20,description:"Item Two"},
+    {"_id" : 3, name:"Item3", unit_price:30,description:"Item Theree"},
+    {"_id" : 4, name:"Item4", unit_price: 40,description:"Item Four"},
+    {"_id" : 5, name:"Item5", unit_price: 50,description:"Item Five"}
+]);
+
+
+
+db.transaction.insertMany([
+{ "_id" : 1, "product_id" : 1, user_id: 1, "date" : ISODate("2014-01-01T08:00:00Z"), "total_price" : 20, "quantity" : 2 },
+{ "_id" : 2, "product_id" : 2, user_id: 1, "date" : ISODate("2014-02-03T09:00:00Z"), "total_price" : 20, "quantity" : 1 },
+{ "_id" : 3, "product_id" : 3, user_id: 3, "date" : ISODate("2014-02-03T09:05:00Z"), "total_price" : 150, "quantity" : 5 },
+{ "_id" : 4, "product_id" : 1, user_id: 2, "date" : ISODate("2014-02-15T08:00:00Z"), "total_price" : 100, "quantity" : 10 },
+{ "_id" : 5, "product_id" : 3, user_id: 2, "date" : ISODate("2014-02-15T09:05:00Z"), "total_price" : 300, "quantity" : 10 },
+{ "_id" : 6, "product_id" : 4, user_id: 3, "date" : ISODate("2014-02-15T12:05:10Z"), "total_price" : 200, "quantity" : 5 },
+{ "_id" : 7, "product_id" : 4, user_id: 2, "date" : ISODate("2014-02-15T14:12:12Z"), "total_price" : 400, "quantity" : 10 }
+]);
+
+
+db.user.insertMany([
+    {"_id" : 1, name:"A", phone:"11111111111", address: "AAAAAAAAAA"},
+    {"_id" : 2, name:"B", phone:"22222222222", address:"BBBBBBBBBBB"},
+    {"_id" : 3, name:"C", phone:"33333333333", address:"CCCCCCCCCCC"},
+    {"_id" : 4, name:"D", phone:"44444444444", address:"EEEEEEEEEEE"},
+    {"_id" : 5, name:"E", phone:"55555555555", address:"FFFFFFFFFFF"}
+]);
+
+db.products.find();
+
+
+
+
+db.user.find
+{
+
+}
+
+
+db.transaction.aggregate([
+    {
+        $group: {
+            _id: "$user_id",
+            lastTransaction: { $last: "$date"},
+            total_transactions: { $sum:1 }  
+        }
+    }
+]);
+
+
+
+
+db.transaction.aggregate([
+    {
+        $group: {
+            _id: "$user_id",
+            lastTransaction: { $last: "$date"},
+            total_transactions: { $sum:1 }  
+        }
+    },
+     {    $lookup: {
+            from: "user",
+            localField: "_id",
+            foreignField: "user_id",
+            as: "user_details"
+        }
+     },
+     {$match: {user_details: {$ne: []}}}
+]);
+
+db.transaction.aggregate([
+    {
+        $group: {
+            _id: {u_id: "$user_id"},
+            lastTransaction: { $last: "$date"},
+            total_transactions: { $sum:1 }  
+        }
+    },
+     {    $lookup: {
+            from: "user",
+            localField: "_id.u_id",
+            foreignField: "_id",
+            as: "user_details"
+        }
+     }
+]);
+
+db.transaction.aggregate([
+    {
+        $group: {
+            _id: "$user_id",
+            lastTransaction: { $last: "$date"},
+            total_transactions: { $sum:1 }  
+        }
+    },
+     {    $lookup: {
+            from: "user",
+            localField: "_id",
+            foreignField: "_id",
+            as: "user_details"
+        }
+     },
+     {   $lookup:{
+            from: "transaction",
+            let: { u_id: "$_id", last_transaction: "$lastTransaction" },
+             pipeline: [
+              { $match:
+                 { $expr:
+                    { $and:
+                       [
+                         { $eq: [ "$user_id",  "$$u_id" ] },
+                         { $eq: [ "$date", "$$last_transaction" ] }
+                       ]
+                    }
+                 }
+              },
+              { $project: { _id: 0 } }
+           ],
+            as: "latest_transaction_details"
+        }   
+    }
+]);
+
+
+db.transaction.aggregate([
+    {
+        $group: {
+            _id: "$user_id",
+            lastTransaction: { $last: "$date"},
+            total_transactions: { $sum:1 }  
+        }
+    },
+     {    $lookup: {
+            from: "user",
+            localField: "_id",
+            foreignField: "_id",
+            as: "user_details"
+        }
+     },
+      {   $lookup:{
+            from: "transaction",
+            localField: "_id",
+            foreignField: "_id",
+            as: "latest_transaction_details"
+        }   
+    }
+]);
+
+db.user.aggregate([
+    {
+         $lookup: {
+            from: "user",
+            localField: "_id",
+            foreignField: "user_id",
+            as: "trnsaction"
+        }
+    }
+]);
+
+db.user.aggregate([
+    {
+         $group: {
+            _id: "$user_id",
+            lastTransaction: { $last: "$date"}
+            total_transactions: { $sum:1 }  
+        },
+         $lookup: {
+            from: "user",
+            localField: "_id",
+            foreignField: "user_id",
+            as: "trnsaction"
+        }
+    }
+]);
+
+
+db.user.aggregate([
+    {
+         $group: {
+            _id: "$user_id",
+            lastTransaction: { $last: "$date"},
+            total_transactions: { $sum:1 }  
+        },
+    }
+    {   $lookup:{
+            from: "transaction",
+            let : { last_transaction: "$lastTransaction"},
+            pipeline: [ 
+                {
+                    $match: {
+                        $expr: {
+                            $eq: [ "$date", "$$last_transaction"]
+                        }
+                    }
+                }
+            ],
+            as: "latest_transaction_details"
+        }   
+    }
+]);
+
+
+db.user.aggregate([
+    {
+        $lookup:{
+            from: "transaction",
+            lastTransaction: { $last: "$date"},
+            let : { u_id: "$_id"},
+            pipeline: [ 
+                {
+                    $match: {
+                        $expr: {
+                            $eq: [ "$date", "$$lastTransaction"]
+                        }
+                    }
+                },
+                { $project: { fromUsers: 0 } }
+            ],
+            as: "latest_transaction_details"
+        }   
+    }
+]);
+
+
+
+db.transaction.aggregate([
+    {
+        $lookup:{
+            from: "transaction",
+            lastTransaction: { $last: "$date"},
+            let : { u_id: "$_id"},
+            pipeline: [ 
+                {
+                    $match: {
+                        $expr: {
+                            $eq: [ "$date", "$$lastTransaction"]
+                        }
+                    }
+                },
+                { $project: { fromUsers: 0 } }
+            ],
+            as: "latest_transaction_details"
+        }   
+    }
+]);

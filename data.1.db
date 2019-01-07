@@ -1,0 +1,202 @@
+{
+  "name": "XYZ",
+  "phone": "1234567890",
+  "address": "abcd",
+  "transaction": {
+    "product": {
+      "name": "Phone",
+      "unit_price": 100,
+      "description": "Cell Phone",
+      "quantity": 1
+    }
+ }
+}
+
+
+db.transactions.aggregate([
+     {
+        $group: {
+            _id: {u_id: "$user_id"},
+            lastTransaction :  { $last: "$date"},
+            total_transactions: { $sum:1 }
+        }
+    },
+     {    $lookup: {
+            from: "users",
+            localField: "_id.u_id",
+            foreignField: "_id",
+            as: "user_details"
+        }
+     },
+     {    
+            $lookup: {
+                from: "transactions",
+                localField: "lastTransaction",
+                foreignField: "date",
+                as: "transaction_details"
+            }
+        },
+        {
+            $project: { _id:0 , 
+                       lastTransaction : 1,
+                       total_transactions: 1
+                  }
+        }	
+]);
+
+
+
+db.transactions.aggregate([
+     {
+        $group: {
+            _id: {u_id: "$user_id"},
+            lastTransaction :  { $last: "$date"},
+            total_transactions: { $sum:1 }
+        }
+    },
+     {    $lookup: {
+            from: "users",
+            localField: "_id.u_id",
+            foreignField: "_id",
+            as: "user_details"
+        }
+     },
+     {    
+            $lookup: {
+                from: "transactions",
+                localField: "lastTransaction",
+                foreignField: "date",
+                as: "transaction_details"
+            }
+        },
+        {
+          $replaceRoot: { newRoot: { $mergeObjects: [ { $arrayElemAt: [ "$user_details", 0 ] },{ $arrayElemAt: [ "$transaction_details", 0 ] }, "$$ROOT" ] } }
+        },
+        { $project: { user_details: 0 } }
+]);
+
+db.transactions.aggregate([
+     {    $lookup: {
+            from: "users",
+            localField: "_id.u_id",
+            foreignField: "_id",
+            as: "user_details"
+        }
+     },
+     {
+        "$unwind": {
+            "path": "$user_details",
+            "preserveNullAndEmptyArrays": true
+        }
+    },
+     {    
+            $lookup: {
+                from: "transactions",
+                localField: "lastTransaction",
+                foreignField: "date",
+                as: "transaction_details"
+            }
+        },
+        
+     {
+        "$unwind": {
+            "path": "$transaction_details",
+            "preserveNullAndEmptyArrays": true
+            }
+        },
+         {
+                $group: {
+                    _id: {u_id: "$user_id"},
+                    lastTransaction :  { $last: "$date"},
+                    total_transactions: { $sum:1 } 
+                }
+            },
+            {
+                "$project" : {
+                    _id: 0,
+                    lastTransaction: 1,
+                    total_transactions: 1,
+                    $user_details : 1
+                }
+            }
+]);
+
+// Code copy
+{
+					$group: {
+						_id: {u_id: "$user_id"},
+						lastTransaction: { $last: "$date"},
+						total_transactions: { $sum:1 }  
+					}
+				},
+				{    
+					$lookup: {
+					   from: "users",
+					   localField: "_id.u_id",
+					   foreignField: "_id",
+					   as: "user_details"
+				   }
+				},
+				{    
+					$lookup: {
+					   from: "transactions",
+					   localField: "lastTransaction",
+					   foreignField: "date",
+					   as: "transaction_details"
+				   }
+				}	
+
+
+// Working copy 
+
+db.transactions.aggregate([
+{
+                $group: {
+                    _id: {u_id: "$user_id"},
+                    lastTransaction :  { $last: "$date"},
+                    total_transactions: { $sum:1 },
+					user_details : { "$push" : "$user_details" }
+                }
+            },
+     {    $lookup: {
+            from: "users",
+            localField: "_id.u_id",
+            foreignField: "_id",
+            as: "user_details"
+        }
+     },
+     {
+        "$unwind": {
+            "path": "$user_details",
+            "preserveNullAndEmptyArrays": true
+        }
+    },
+     {    
+            $lookup: {
+                from: "transactions",
+                localField: "lastTransaction",
+                foreignField: "date",
+                as: "transaction_details"
+            }
+        },
+        
+     {
+        "$unwind": {
+            "path": "$transaction_details",
+            "preserveNullAndEmptyArrays": true
+            }
+        },
+         {
+                "$project" : {
+                    _id: 0,
+                    lastTransaction: 1,
+                    total_transactions: 1,
+                    "user_details.name" : 1,
+					"user_details.phone" : 1,
+					"user_details. address" : 1,
+					"transaction_details.quantity" : 1,
+					"transaction_details.total_price" : 1
+					
+                }
+            }
+]);
